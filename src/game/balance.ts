@@ -32,6 +32,8 @@ export const BALANCE = {
     maxRate: 0.9,
     minLength: 4,
     maxLength: 8,
+    /** 防御フェイズ開始直後、ミスを判定しない時間（秒） */
+    missGraceTime: 0.5,
   },
   penalty: {
     /** 攻撃フェイズのミスで余計に減る敵ゲージ（秒） */

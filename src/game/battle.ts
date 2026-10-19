@@ -36,11 +36,13 @@ export class Battle implements SkillHost {
   /** 敵の攻撃までの残り秒数 */
   gauge: number;
   attack: Typing;
-  /** 攻撃ワードが攻撃フェイズ中に表示されていた時間 */
+  /** 攻撃ワードが表示されてからの時間 */
   attackTime = 0;
   defense: Typing | null = null;
   defenseLimit = 0;
   defenseLeft = 0;
+  /** 残り時間がある間はミスを判定しない */
+  missGraceLeft = 0;
   attacksThisBattle = 0;
   private events: BattleEvent[] = [];
 
@@ -83,6 +85,7 @@ export class Battle implements SkillHost {
         break;
       case 'defense':
         this.defenseLeft -= dt;
+        this.missGraceLeft -= dt;
         if (this.defenseLeft <= 0) this.resolveDefense(false);
         break;
     }
@@ -99,6 +102,7 @@ export class Battle implements SkillHost {
       }
       return 'hit';
     }
+    if (this.missGraceLeft > 0) return 'ignored';
     this.handleMiss(typing);
     return 'miss';
   }
@@ -177,6 +181,7 @@ export class Battle implements SkillHost {
     this.defense = startTyping(word);
     this.defenseLimit = d.baseTime + word.length / kps;
     this.defenseLeft = this.defenseLimit;
+    this.missGraceLeft = d.missGraceTime;
     this.phase = 'defense';
     this.events.push({ type: 'defenseStart' });
   }
@@ -216,6 +221,7 @@ export class Battle implements SkillHost {
     rs.misses += typing.misses;
 
     this.defense = null;
+    this.missGraceLeft = 0;
     if (p.hp <= 0) {
       this.phase = 'lost';
       this.events.push({ type: 'lost' });
@@ -223,5 +229,8 @@ export class Battle implements SkillHost {
     }
     this.phase = 'attack';
     this.gauge = this.enemy.interval;
+    // 打ちかけの攻撃ワードは捨てて、新しいワードで攻撃を再開する
+    this.attack = startTyping(this.run.pickAttackWord());
+    this.attackTime = 0;
   }
 }

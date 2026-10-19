@@ -94,20 +94,40 @@ describe('Battle', () => {
   it('防御中のミスで猶予時間が減る', () => {
     const b = startedBattle();
     b.tick(b.gauge);
+    b.tick(BALANCE.defense.missGraceTime);
     const before = b.defenseLeft;
     b.key('#');
     expect(b.defenseLeft).toBeCloseTo(before - BALANCE.penalty.defenseTime);
   });
 
-  it('打ちかけの攻撃ワードは防御後も残る', () => {
+  it('防御の後は新しい攻撃ワードで再開する', () => {
     const b = startedBattle();
-    const word = b.attack.word;
+    const typing = b.attack;
     b.key(b.current.input.nextKey!);
     b.tick(b.gauge);
     typeCurrent(b);
     expect(b.phase).toBe('attack');
-    expect(b.attack.word).toBe(word);
-    expect(b.attack.input.typed.length).toBe(1);
+    expect(b.attack).not.toBe(typing);
+    expect(b.attack.input.typed).toBe('');
+    expect(b.attackTime).toBe(0);
+  });
+
+  it('防御フェイズ開始から0.5秒はミスを判定しない', () => {
+    const b = startedBattle();
+    b.tick(b.gauge);
+    const left = b.defenseLeft;
+    expect(b.key('#')).toBe('ignored');
+    expect(b.defense!.misses).toBe(0);
+    expect(b.defenseLeft).toBe(left);
+    b.tick(BALANCE.defense.missGraceTime);
+    expect(b.key('#')).toBe('miss');
+    expect(b.defense!.misses).toBe(1);
+  });
+
+  it('猶予中も正しいキーは受け付ける', () => {
+    const b = startedBattle();
+    b.tick(b.gauge);
+    expect(b.key(b.current.input.nextKey!)).toBe('hit');
   });
 
   it('敵のHPが0になると勝利する', () => {
