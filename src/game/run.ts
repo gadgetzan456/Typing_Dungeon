@@ -1,7 +1,15 @@
-import { WORDS, WORDS_BY_LENGTH, type Word } from '../data/words';
+import { WORDS, WORDS_BY_LENGTH, WORD_KINDS, type Word, type WordKind } from '../data/words';
 import { BALANCE } from './balance';
 import { createEnemy, type Enemy } from './enemies';
-import { SKILLS, type PlayerStats, type SkillDef, type SkillHooks, type SkillInstance } from './skills';
+import {
+  KIND_SKILL_GROUPS,
+  SKILLS,
+  type PlayerStats,
+  type SkillDef,
+  type SkillHooks,
+  type SkillInstance,
+  type WordWeights,
+} from './skills';
 
 export interface PlayerState {
   hp: number;
@@ -79,7 +87,16 @@ export class Run {
   }
 
   skillOffers(count = 3): SkillDef[] {
-    const pool = SKILLS.filter((d) => this.stacksOf(d.id) < d.maxStacks);
+    const available = (d: SkillDef) => this.stacksOf(d.id) < d.maxStacks;
+    const pool = SKILLS.filter(available);
+    // 種類ごとのスキルは型ごとに1つだけ。持っている種類があれば半分の確率でそれを出してレベルを上げやすくする
+    for (const group of KIND_SKILL_GROUPS) {
+      const candidates = group.filter(available);
+      if (candidates.length === 0) continue;
+      const owned = candidates.filter((d) => this.stacksOf(d.id) > 0);
+      const from = owned.length > 0 && this.rng() < 0.5 ? owned : candidates;
+      pool.push(from[Math.floor(this.rng() * from.length)]);
+    }
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(this.rng() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -87,23 +104,34 @@ export class Run {
     return pool.slice(0, count);
   }
 
-  pickAttackWord(): Word {
-    const weights = { ...BALANCE.wordWeights };
+  wordWeights(): WordWeights {
+    const weights: WordWeights = {
+      length: { ...BALANCE.wordWeights },
+      kind: Object.fromEntries(WORD_KINDS.map((k) => [k, 1])) as Record<WordKind, number>,
+    };
     this.eachHook('wordWeights', (h, s) => h(s, weights));
-    const lengths = Object.keys(weights)
-      .map(Number)
-      .filter((l) => weights[l] > 0 && WORDS_BY_LENGTH.has(l));
-    const total = lengths.reduce((sum, l) => sum + weights[l], 0);
+    return weights;
+  }
+
+  pickAttackWord(): Word {
+    const w = this.wordWeights();
+    // 文字数の重みはその文字数の単語に等分し、種類の倍率を掛ける
+    const weightOf = (word: Word) =>
+      ((w.length[word.length] ?? 0) / WORDS_BY_LENGTH.get(word.length)!.length) * w.kind[word.kind];
+    const fresh = WORDS.filter((word) => !this.recent.includes(word.reading) && weightOf(word) > 0);
+    const pool = fresh.length > 0 ? fresh : WORDS;
+    const total = pool.reduce((sum, word) => sum + weightOf(word), 0);
     let r = this.rng() * total;
-    let length = lengths[lengths.length - 1];
-    for (const l of lengths) {
-      r -= weights[l];
+    let picked = pool[pool.length - 1];
+    for (const word of pool) {
+      r -= weightOf(word);
       if (r < 0) {
-        length = l;
+        picked = word;
         break;
       }
     }
-    return this.pickFrom(WORDS_BY_LENGTH.get(length)!);
+    this.remember(picked);
+    return picked;
   }
 
   pickDefenseWord(): Word {
@@ -115,9 +143,13 @@ export class Run {
     const fresh = list.filter((w) => !this.recent.includes(w.reading));
     const pool = fresh.length > 0 ? fresh : list;
     const word = pool[Math.floor(this.rng() * pool.length)];
+    this.remember(word);
+    return word;
+  }
+
+  private remember(word: Word): void {
     this.recent.push(word.reading);
     if (this.recent.length > RECENT_LIMIT) this.recent.shift();
-    return word;
   }
 
   /** 勝利してスキルを選んだ後に、次の戦闘へ進める */

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BALANCE } from '../src/game/balance';
 import { Battle } from '../src/game/battle';
 import { Run } from '../src/game/run';
-import { SKILLS } from '../src/game/skills';
+import { BALANCE, lengthMult } from '../src/game/balance';
+import { ALL_SKILLS, KIND_SKILL_GROUPS } from '../src/game/skills';
 
 function seeded(seed = 1): () => number {
   let s = seed;
@@ -12,7 +12,7 @@ function seeded(seed = 1): () => number {
   };
 }
 
-const skill = (id: string) => SKILLS.find((s) => s.id === id)!;
+const skill = (id: string) => ALL_SKILLS.find((s) => s.id === id)!;
 
 function startedBattle(run = new Run(seeded())): Battle {
   const b = new Battle(run);
@@ -240,6 +240,62 @@ describe('スキル', () => {
     const def = skill('counter');
     for (let i = 0; i < def.maxStacks; i++) run.addSkill(def);
     for (let i = 0; i < 50; i++) expect(run.skillOffers().map((d) => d.id)).not.toContain('counter');
+  });
+});
+
+describe('単語の種類', () => {
+  const share = (run: Run, kind: string) => {
+    let n = 0;
+    for (let i = 0; i < 3000; i++) if (run.pickAttackWord().kind === kind) n++;
+    return n / 3000;
+  };
+
+  it('心得で出やすく、断ちで出にくくなる', () => {
+    const base = share(new Run(seeded(5)), 'proverb');
+    const favor = new Run(seeded(5));
+    favor.addSkill(skill('kind-favor:proverb'));
+    const avoid = new Run(seeded(5));
+    avoid.addSkill(skill('kind-avoid:word'));
+    avoid.addSkill(skill('kind-avoid:word'));
+    expect(share(favor, 'proverb')).toBeGreaterThan(base * 1.5);
+    expect(share(avoid, 'word')).toBeLessThan(share(new Run(seeded(5)), 'word') * 0.6);
+  });
+
+  it('達人はその種類の攻撃だけ倍率がかかる', () => {
+    const base = startedBattle(new Run(seeded(9)));
+    const run = new Run(seeded(9));
+    run.addSkill(skill('kind-master:word'));
+    const b = startedBattle(run);
+    base.enemy.hp = b.enemy.hp = 1e9;
+    for (let i = 0; i < 8; i++) {
+      typeCurrent(base);
+      typeCurrent(b);
+    }
+    const plain = attackDamages(base);
+    const boosted = attackDamages(b);
+    expect(plain.length).toBeGreaterThan(3);
+    plain.forEach((p, i) => {
+      if (p.info.kind === 'word') expect(boosted[i].tags).toContain('単語');
+      else expect(boosted[i].damage).toBe(p.damage);
+    });
+  });
+
+  it('スキル候補には同じ型の種類スキルが2つ以上出ない', () => {
+    const run = new Run(seeded(2));
+    for (let i = 0; i < 200; i++) {
+      const ids = run.skillOffers().map((d) => d.id);
+      for (const group of KIND_SKILL_GROUPS) {
+        expect(ids.filter((id) => group.some((d) => d.id === id)).length).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
+
+describe('文字数ボーナス', () => {
+  it('長い単語ほど少しだけ攻撃力が上がる', () => {
+    expect(lengthMult(3)).toBe(1);
+    expect(lengthMult(12)).toBeCloseTo(1 + BALANCE.attack.lengthBonusPerKana * 9);
+    expect(lengthMult(8)).toBeGreaterThan(lengthMult(5));
   });
 });
 

@@ -1,3 +1,4 @@
+import { KIND_LABEL, WORD_KINDS, type WordKind } from '../data/words';
 import type { PlayerState } from './run';
 
 export type SkillDuration = 'run' | 'battle' | 'instant';
@@ -18,13 +19,23 @@ export interface PlayerStats {
   penaltyMult: number;
 }
 
+/** 攻撃ワードの抽選の重み。スキルが書き換える */
+export interface WordWeights {
+  /** 文字数ごとの重み */
+  length: Record<number, number>;
+  /** 種類ごとの倍率 */
+  kind: Record<WordKind, number>;
+}
+
 export interface AttackInfo {
   length: number;
+  kind: WordKind;
   misses: number;
   keys: number;
   kps: number;
   speedMult: number;
   accMult: number;
+  lengthMult: number;
   perfect: boolean;
 }
 
@@ -62,7 +73,7 @@ export interface SkillInstance {
 export interface SkillHooks {
   onAcquire?(s: SkillInstance, player: PlayerState): void;
   stats?(s: SkillInstance, stats: PlayerStats): void;
-  wordWeights?(s: SkillInstance, weights: Record<number, number>): void;
+  wordWeights?(s: SkillInstance, weights: WordWeights): void;
   /** true を返すとそのミスを無効化する */
   onMiss?(s: SkillInstance, host: SkillHost): boolean;
   modifyAttack?(s: SkillInstance, info: AttackInfo, mods: DamageMods, host: SkillHost): void;
@@ -83,8 +94,8 @@ export interface SkillDef {
   hooks: SkillHooks;
 }
 
-function boostLengths(weights: Record<number, number>, lengths: number[], ratio: number): void {
-  for (const l of lengths) if (weights[l] !== undefined) weights[l] *= 1 + ratio;
+function boostLengths(weights: WordWeights, lengths: number[], ratio: number): void {
+  for (const l of lengths) if (weights.length[l] !== undefined) weights.length[l] *= 1 + ratio;
 }
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
@@ -305,3 +316,67 @@ export const SKILLS: SkillDef[] = [
     },
   },
 ];
+
+// ---- 単語の種類ごとのスキル ----
+// 珍しい種類ほど倍率を高くしている（出現率の目安: 単語57% / カタカナ語14% / 四字熟語9% / ことわざ5% / 文章15%）
+const KIND_MASTER: Record<WordKind, { base: number; step: number }> = {
+  word: { base: 1.2, step: 0.1 },
+  katakana: { base: 1.5, step: 0.2 },
+  idiom: { base: 1.8, step: 0.3 },
+  proverb: { base: 2, step: 0.4 },
+  sentence: { base: 1.5, step: 0.2 },
+};
+
+function kindFavor(kind: WordKind): SkillDef {
+  const label = KIND_LABEL[kind];
+  return {
+    id: `kind-favor:${kind}`,
+    name: `${label}の心得`,
+    duration: 'run',
+    maxStacks: 3,
+    description: (n) => `${label}の攻撃ワードが出やすくなる（出現率 +${100 * n}%）`,
+    hooks: { wordWeights: (s, w) => void (w.kind[kind] *= 1 + s.stacks) },
+  };
+}
+
+function kindAvoid(kind: WordKind): SkillDef {
+  const label = KIND_LABEL[kind];
+  return {
+    id: `kind-avoid:${kind}`,
+    name: `${label}断ち`,
+    duration: 'run',
+    maxStacks: 3,
+    description: (n) => `${label}の攻撃ワードが出にくくなる（出現率 -${Math.round((1 - 0.5 ** n) * 100)}%）`,
+    hooks: { wordWeights: (s, w) => void (w.kind[kind] *= 0.5 ** s.stacks) },
+  };
+}
+
+function kindMaster(kind: WordKind): SkillDef {
+  const label = KIND_LABEL[kind];
+  const { base, step } = KIND_MASTER[kind];
+  const mult = (n: number) => base + step * (n - 1);
+  return {
+    id: `kind-master:${kind}`,
+    name: `${label}の達人`,
+    duration: 'instant',
+    maxStacks: 3,
+    description: (n) => `${label}の単語で攻撃すると、その攻撃が${fmt(mult(n))}倍`,
+    hooks: {
+      modifyAttack: (s, info, mods) => {
+        if (info.kind !== kind) return;
+        mods.mult *= mult(s.stacks);
+        mods.tags.push(label);
+      },
+    },
+  };
+}
+
+/**
+ * 種類ごとのスキルは、同じ型（心得・断ち・達人）ごとにまとめる。
+ * スキル候補には型ごとに1つだけ、種類をランダムに選んで出す。
+ */
+export const KIND_SKILL_GROUPS: SkillDef[][] = [kindFavor, kindAvoid, kindMaster].map((make) =>
+  WORD_KINDS.map(make),
+);
+
+export const ALL_SKILLS: SkillDef[] = [...SKILLS, ...KIND_SKILL_GROUPS.flat()];

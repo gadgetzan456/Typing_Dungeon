@@ -1,6 +1,6 @@
 import type { Word } from '../data/words';
 import { RomajiInput } from '../romaji/engine';
-import { BALANCE, accuracyMult, speedMult } from './balance';
+import { BALANCE, accuracyMult, lengthMult, speedMult } from './balance';
 import type { Enemy } from './enemies';
 import type { Run } from './run';
 import type { AttackInfo, DamageMods, DefenseInfo, SkillHost } from './skills';
@@ -135,11 +135,13 @@ export class Battle implements SkillHost {
     const kps = word.length / Math.max(BALANCE.attack.minWordTime, this.attackTime);
     const info: AttackInfo = {
       length: word.length,
+      kind: word.kind,
       misses,
       keys,
       kps,
       speedMult: speedMult(kps),
       accMult: accuracyMult(keys, misses),
+      lengthMult: lengthMult(word.length),
       perfect: misses === 0,
     };
     const mods: DamageMods = { mult: 1, tags: [] };
@@ -148,7 +150,13 @@ export class Battle implements SkillHost {
     const damage = Math.max(
       1,
       Math.round(
-        BALANCE.player.baseAttack * info.length * info.speedMult * info.accMult * stats.attackMult * mods.mult,
+        BALANCE.player.baseAttack *
+          info.length *
+          info.lengthMult *
+          info.speedMult *
+          info.accMult *
+          stats.attackMult *
+          mods.mult,
       ),
     );
 

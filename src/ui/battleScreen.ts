@@ -1,6 +1,7 @@
 import { BALANCE } from '../game/balance';
 import { Battle, type BattleEvent } from '../game/battle';
 import type { Run } from '../game/run';
+import { KIND_LABEL, THEME_LABEL } from '../data/words';
 import { DURATION_LABEL } from '../game/skills';
 import type { App, Screen } from './app';
 import { el, escapeHtml, flash, popup } from './dom';
@@ -34,6 +35,7 @@ export class BattleScreen implements Screen {
   private playerPopups = el('div', 'popups');
   private banner = el('div', 'banner');
   private wordBox = el('div', 'word-box');
+  private wordTags = el('div', 'word-tags');
   private wordDisplay = el('div', 'word-display');
   private wordKana = el('div', 'word-kana');
   private wordRomaji = el('div', 'word-romaji');
@@ -67,7 +69,10 @@ export class BattleScreen implements Screen {
     const arena = el('section', 'arena');
     arena.append(this.enemyEl, this.popups, this.banner);
 
-    this.wordBox.append(el('div', 'defense-label', '敵の攻撃！ 打ち切って防御せよ！'), this.wordDisplay, this.wordKana, this.wordRomaji, this.defenseTimer.root);
+    this.wordBox.append(
+      el('div', 'defense-label', '敵の攻撃！ 打ち切って防御せよ！'),
+      this.wordTags,
+      this.wordDisplay, this.wordKana, this.wordRomaji, this.defenseTimer.root);
 
     this.pauseOverlay.innerHTML = '<div class="overlay-card"><h2>一時停止</h2><p>Esc で再開</p></div>';
 
@@ -125,7 +130,7 @@ export class BattleScreen implements Screen {
           flash(this.enemyEmoji, 'hit');
           const i = e.info;
           this.lastAttack.textContent =
-            `${i.length}文字  速度 ${i.kps.toFixed(1)}かな/秒 ×${i.speedMult.toFixed(2)}  ` +
+            `${i.length}文字 ×${i.lengthMult.toFixed(2)}  速度 ${i.kps.toFixed(1)}かな/秒 ×${i.speedMult.toFixed(2)}  ` +
             `精度 ×${i.accMult.toFixed(2)}${i.perfect ? '（ノーミス）' : `（ミス${i.misses}）`}`;
           break;
         }
@@ -192,6 +197,9 @@ export class BattleScreen implements Screen {
     if (key !== this.lastWordKey) {
       this.lastWordKey = key;
       this.wordDisplay.textContent = word.display;
+      this.wordTags.innerHTML =
+        `<span class="word-tag kind-${word.kind}">${KIND_LABEL[word.kind]}</span>` +
+        `<span class="word-tag">${THEME_LABEL[word.theme]}</span>`;
       const done = input.kanaDone;
       this.wordKana.innerHTML =
         `<span class="done">${escapeHtml(input.kana.slice(0, done))}</span>` +

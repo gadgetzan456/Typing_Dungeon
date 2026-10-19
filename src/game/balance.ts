@@ -20,6 +20,8 @@ export const BALANCE = {
     minAccMult: 0.3,
     /** 測定時間の下限（秒）。極端な値を防ぐ */
     minWordTime: 0.3,
+    /** かな3文字を超える1文字ごとの攻撃力ボーナス（長い単語ほど少し強い） */
+    lengthBonusPerKana: 0.02,
   },
   defense: {
     baseTime: 1,
@@ -53,6 +55,10 @@ export const BALANCE = {
 export function speedMult(kps: number): number {
   const a = BALANCE.attack;
   return Math.min(a.maxSpeedMult, Math.max(a.minSpeedMult, kps / a.referenceKps));
+}
+
+export function lengthMult(length: number): number {
+  return 1 + BALANCE.attack.lengthBonusPerKana * Math.max(0, length - 3);
 }
 
 export function accuracyMult(keys: number, misses: number): number {
