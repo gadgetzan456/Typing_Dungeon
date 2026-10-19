@@ -20,7 +20,7 @@ export function titleScreen(app: App): Screen {
         <li>勝つたびに3つのスキルから1つを選んで強くなる</li>
         <li>${BALANCE.run.battlesPerRound}戦で1ラウンド、${BALANCE.run.rounds}ラウンド目のボスを倒せばクリア</li>
       </ul>
-      <p class="notice">※ 日本語入力（IME）はオフにして遊んでください</p>
+      <p class="notice">※ 日本語入力（IME）はオフにして遊んでください。キーが効かないときは画面を一度クリック</p>
       <button class="start">Enter / Space でスタート</button>
     </div>`;
   root.querySelector('button')!.addEventListener('click', () => app.newRun());
