@@ -22,6 +22,8 @@ export const BALANCE = {
     minWordTime: 0.3,
     /** かな3文字を超える1文字ごとの攻撃力ボーナス（長い単語ほど少し強い） */
     lengthBonusPerKana: 0.02,
+    /** 敵の弱点テーマの単語で攻撃したときの倍率 */
+    weaknessMult: 2,
   },
   defense: {
     baseTime: 1,

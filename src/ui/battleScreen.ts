@@ -64,7 +64,9 @@ export class BattleScreen implements Screen {
 
     this.enemyEmoji.textContent = enemy.emoji;
     const name = el('div', 'enemy-name', enemy.isBoss ? `BOSS ${enemy.name}` : enemy.name);
-    this.enemyEl.append(name, this.enemyEmoji, this.enemyHp.root, this.gauge.root);
+    const weakness = el('div', 'enemy-weakness');
+    weakness.innerHTML = `弱点 <span class="word-tag weak">${THEME_LABEL[enemy.weakness]}</span>`;
+    this.enemyEl.append(name, weakness, this.enemyEmoji, this.enemyHp.root, this.gauge.root);
     if (enemy.isBoss) this.enemyEl.classList.add('boss');
     const arena = el('section', 'arena');
     arena.append(this.enemyEl, this.popups, this.banner);
@@ -199,7 +201,7 @@ export class BattleScreen implements Screen {
       this.wordDisplay.textContent = word.display;
       this.wordTags.innerHTML =
         `<span class="word-tag kind-${word.kind}">${KIND_LABEL[word.kind]}</span>` +
-        `<span class="word-tag">${THEME_LABEL[word.theme]}</span>`;
+        `<span class="word-tag${word.theme === b.enemy.weakness && b.phase !== 'defense' ? ' weak' : ''}">${THEME_LABEL[word.theme]}</span>`;
       const done = input.kanaDone;
       this.wordKana.innerHTML =
         `<span class="done">${escapeHtml(input.kana.slice(0, done))}</span>` +

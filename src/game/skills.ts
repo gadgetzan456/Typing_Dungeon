@@ -1,4 +1,4 @@
-import { KIND_LABEL, WORD_KINDS, type WordKind } from '../data/words';
+import { KIND_LABEL, WORD_KINDS, type WordKind, type WordTheme } from '../data/words';
 import type { PlayerState } from './run';
 
 export type SkillDuration = 'run' | 'battle' | 'instant';
@@ -30,6 +30,9 @@ export interface WordWeights {
 export interface AttackInfo {
   length: number;
   kind: WordKind;
+  theme: WordTheme;
+  /** 敵の弱点テーマを突いたか */
+  weakness: boolean;
   misses: number;
   keys: number;
   kps: number;
@@ -318,12 +321,12 @@ export const SKILLS: SkillDef[] = [
 ];
 
 // ---- 単語の種類ごとのスキル ----
-// 珍しい種類ほど倍率を高くしている（出現率の目安: 単語57% / カタカナ語14% / 四字熟語9% / ことわざ5% / 文章15%）
+// 珍しい種類ほど倍率を高くしている（出現率の目安: 単語45% / カタカナ語21% / 四字熟語11% / ことわざ7% / 文章16%）
 const KIND_MASTER: Record<WordKind, { base: number; step: number }> = {
   word: { base: 1.2, step: 0.1 },
-  katakana: { base: 1.5, step: 0.2 },
-  idiom: { base: 1.8, step: 0.3 },
-  proverb: { base: 2, step: 0.4 },
+  katakana: { base: 1.4, step: 0.15 },
+  idiom: { base: 1.6, step: 0.25 },
+  proverb: { base: 1.8, step: 0.3 },
   sentence: { base: 1.5, step: 0.2 },
 };
 

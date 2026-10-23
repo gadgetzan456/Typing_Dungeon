@@ -3,6 +3,8 @@ import { Battle } from '../src/game/battle';
 import { Run } from '../src/game/run';
 import { BALANCE, lengthMult } from '../src/game/balance';
 import { ALL_SKILLS, KIND_SKILL_GROUPS } from '../src/game/skills';
+import { THEME_LABEL } from '../src/data/words';
+import { createEnemy } from '../src/game/enemies';
 
 function seeded(seed = 1): () => number {
   let s = seed;
@@ -166,6 +168,7 @@ describe('スキル', () => {
     const run = new Run(seeded());
     run.addSkill(skill('counter'));
     const b = startedBattle(run);
+    b.enemy.hp = 1e9;
     b.tick(b.gauge);
     typeCurrent(b, 0.05);
     typeCurrent(b);
@@ -287,6 +290,39 @@ describe('単語の種類', () => {
       for (const group of KIND_SKILL_GROUPS) {
         expect(ids.filter((id) => group.some((d) => d.id === id)).length).toBeLessThanOrEqual(1);
       }
+    }
+  });
+});
+
+describe('弱点', () => {
+  it('敵の弱点テーマの単語で攻撃すると倍率がかかる', () => {
+    const plain = startedBattle(new Run(seeded(4)));
+    const weak = startedBattle(new Run(seeded(4)));
+    plain.enemy.hp = weak.enemy.hp = 1e9;
+    for (let i = 0; i < 30; i++) {
+      // 片方だけ、いま表示中の単語のテーマを弱点にする
+      weak.enemy.weakness = weak.attack.word.theme;
+      plain.enemy.weakness = plain.attack.word.theme === 'game' ? 'daily' : 'game';
+      if (plain.attack.word.theme === plain.enemy.weakness) continue;
+      typeCurrent(plain);
+      typeCurrent(weak);
+    }
+    const p = attackDamages(plain);
+    const w = attackDamages(weak);
+    expect(p.length).toBeGreaterThan(5);
+    p.forEach((e, i) => {
+      expect(e.info.weakness).toBe(false);
+      expect(w[i].info.weakness).toBe(true);
+      expect(w[i].tags).toContain('弱点');
+      expect(w[i].damage).toBeCloseTo(e.damage * BALANCE.attack.weaknessMult, -1);
+    });
+  });
+
+  it('すべての敵に弱点テーマがある', () => {
+    const rng = seeded(11);
+    for (let round = 1; round <= BALANCE.run.rounds; round++) {
+      for (let i = 0; i < 20; i++) expect(THEME_LABEL[createEnemy(round, 1, false, rng).weakness]).toBeDefined();
+      expect(THEME_LABEL[createEnemy(round, 5, true, rng).weakness]).toBeDefined();
     }
   });
 });

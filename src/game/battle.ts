@@ -136,6 +136,8 @@ export class Battle implements SkillHost {
     const info: AttackInfo = {
       length: word.length,
       kind: word.kind,
+      theme: word.theme,
+      weakness: word.theme === this.enemy.weakness,
       misses,
       keys,
       kps,
@@ -145,6 +147,10 @@ export class Battle implements SkillHost {
       perfect: misses === 0,
     };
     const mods: DamageMods = { mult: 1, tags: [] };
+    if (info.weakness) {
+      mods.mult *= BALANCE.attack.weaknessMult;
+      mods.tags.push('弱点');
+    }
     this.run.eachHook('modifyAttack', (h, s) => h(s, info, mods, this));
     const stats = this.run.playerStats();
     const damage = Math.max(
