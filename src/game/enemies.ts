@@ -43,10 +43,16 @@ const BOSSES: EnemyTemplate[] = [
   { name: '魔王', emoji: '😈', hp: 170, attack: 15, interval: 6.5, weakness: 'adventure' },
 ];
 
-/** round: 1〜, battle: 1〜5（5 がボス） */
-export function createEnemy(round: number, battle: number, isBoss: boolean, rng: () => number): Enemy {
+/** round: 1〜, battle: 1〜5（5 がボス）。previous に直前の敵の名前を渡すと、同じ敵は続けて出ない */
+export function createEnemy(
+  round: number,
+  battle: number,
+  isBoss: boolean,
+  rng: () => number,
+  previous?: string,
+): Enemy {
   const r = Math.min(round, NORMALS.length) - 1;
-  const pool = NORMALS[r];
+  const pool = NORMALS[r].filter((t) => t.name !== previous);
   const t = isBoss ? BOSSES[r] : pool[Math.floor(rng() * pool.length)];
   const roundScaleHp = 1.7 ** (round - 1);
   const roundScaleAtk = 1.35 ** (round - 1);

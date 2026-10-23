@@ -39,6 +39,7 @@ export class Run {
   /** 直近のラウンド切り替えで回復した量 */
   lastHeal = 0;
   private recent: string[] = [];
+  private lastEnemy: string | undefined;
 
   constructor(readonly rng: () => number = Math.random) {}
 
@@ -51,7 +52,9 @@ export class Run {
   }
 
   createEnemy(): Enemy {
-    return createEnemy(this.round, this.battle, this.isBossBattle, this.rng);
+    const enemy = createEnemy(this.round, this.battle, this.isBossBattle, this.rng, this.lastEnemy);
+    this.lastEnemy = enemy.name;
+    return enemy;
   }
 
   /** 各スキルの指定フックを呼ぶ */

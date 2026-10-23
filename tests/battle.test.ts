@@ -318,6 +318,19 @@ describe('弱点', () => {
     });
   });
 
+  it('同じモンスターは連続で出ない', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const run = new Run(seeded(seed));
+      let prev = '';
+      for (let i = 0; i < 15; i++) {
+        const name = run.createEnemy().name;
+        expect(name).not.toBe(prev);
+        prev = name;
+        run.advance();
+      }
+    }
+  });
+
   it('すべての敵に弱点テーマがある', () => {
     const rng = seeded(11);
     for (let round = 1; round <= BALANCE.run.rounds; round++) {
