@@ -1,6 +1,6 @@
 import { WORDS, WORDS_BY_LENGTH, WORD_KINDS, type Word, type WordKind } from '../data/words';
 import { BALANCE } from './balance';
-import { createEnemy, type Enemy } from './enemies';
+import { createEnemy, normalEnemyCount, type Enemy } from './enemies';
 import {
   KIND_SKILL_GROUPS,
   SKILLS,
@@ -39,7 +39,9 @@ export class Run {
   /** 直近のラウンド切り替えで回復した量 */
   lastHeal = 0;
   private recent: string[] = [];
-  private lastEnemy: string | undefined;
+  /** このラウンドの通常戦で出す敵の順番（各種1回ずつ） */
+  private enemyOrder: number[] = [];
+  private enemyOrderRound = 0;
 
   constructor(readonly rng: () => number = Math.random) {}
 
@@ -52,9 +54,12 @@ export class Run {
   }
 
   createEnemy(): Enemy {
-    const enemy = createEnemy(this.round, this.battle, this.isBossBattle, this.rng, this.lastEnemy);
-    this.lastEnemy = enemy.name;
-    return enemy;
+    if (this.enemyOrderRound !== this.round) {
+      this.enemyOrder = this.shuffle([...Array(normalEnemyCount(this.round)).keys()]);
+      this.enemyOrderRound = this.round;
+    }
+    const index = this.enemyOrder[(this.battle - 1) % this.enemyOrder.length];
+    return createEnemy(this.round, this.battle, this.isBossBattle, index);
   }
 
   /** 各スキルの指定フックを呼ぶ */
@@ -100,11 +105,15 @@ export class Run {
       const from = owned.length > 0 && this.rng() < 0.5 ? owned : candidates;
       pool.push(from[Math.floor(this.rng() * from.length)]);
     }
-    for (let i = pool.length - 1; i > 0; i--) {
+    return this.shuffle(pool).slice(0, count);
+  }
+
+  private shuffle<T>(list: T[]): T[] {
+    for (let i = list.length - 1; i > 0; i--) {
       const j = Math.floor(this.rng() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+      [list[i], list[j]] = [list[j], list[i]];
     }
-    return pool.slice(0, count);
+    return list;
   }
 
   wordWeights(): WordWeights {

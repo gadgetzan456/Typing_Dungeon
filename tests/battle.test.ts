@@ -318,24 +318,36 @@ describe('弱点', () => {
     });
   });
 
-  it('同じモンスターは連続で出ない', () => {
+  it('1ラウンドの通常戦4戦で4種と1回ずつ戦う', () => {
+    const orders = new Set<string>();
     for (let seed = 1; seed <= 30; seed++) {
       const run = new Run(seeded(seed));
-      let prev = '';
-      for (let i = 0; i < 15; i++) {
-        const name = run.createEnemy().name;
-        expect(name).not.toBe(prev);
-        prev = name;
+      for (let round = 1; round <= BALANCE.run.rounds; round++) {
+        const names: string[] = [];
+        for (let b = 1; b < BALANCE.run.battlesPerRound; b++) {
+          names.push(run.createEnemy().name);
+          run.advance();
+        }
+        expect(new Set(names).size).toBe(4);
+        expect(run.createEnemy().isBoss).toBe(true);
         run.advance();
+        if (round === 1) orders.add(names.join());
       }
     }
+    // 順番はランダムに変わる
+    expect(orders.size).toBeGreaterThan(5);
+  });
+
+  it('同じ戦闘で何度呼んでも同じ敵になる', () => {
+    const run = new Run(seeded(3));
+    expect(run.createEnemy().name).toBe(run.createEnemy().name);
   });
 
   it('すべての敵に弱点テーマがある', () => {
     const rng = seeded(11);
     for (let round = 1; round <= BALANCE.run.rounds; round++) {
-      for (let i = 0; i < 20; i++) expect(THEME_LABEL[createEnemy(round, 1, false, rng).weakness]).toBeDefined();
-      expect(THEME_LABEL[createEnemy(round, 5, true, rng).weakness]).toBeDefined();
+      for (let i = 0; i < 20; i++) expect(THEME_LABEL[createEnemy(round, 1, false, Math.floor(rng() * 4)).weakness]).toBeDefined();
+      expect(THEME_LABEL[createEnemy(round, 5, true, 0).weakness]).toBeDefined();
     }
   });
 });
